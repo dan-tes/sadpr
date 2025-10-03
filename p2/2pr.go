@@ -71,7 +71,7 @@ func NewCityPerm() *CityPerm {
 	}
 }
 
-func (f *CityPerm) generateNewDecision(arr []float64, t float64) []float64 {
+func (f *CityPerm) generateNewDecision(arr []float64, _ float64) []float64 {
 	if len(arr) != 8 || arr[0] != 0 || arr[len(arr)-1] != 0 {
 		panic("arr must have length 8")
 	}
@@ -141,6 +141,7 @@ func simulatedAnnealing(maxIter int, T0 float64, problem problem, current []floa
 			}
 		}
 		fmt.Println("Итерация ", k, "из ", maxIter, " Текущее решение", current, "Текущий результат", currentVal)
+		fmt.Println(T)
 		// обновляем лучшее найденное
 		if currentVal < bestVal {
 			copy(best, current)

@@ -18,21 +18,26 @@ type CityPerm struct {
 }
 
 func (f *CityPerm) getY(arr []int) int {
+	// безопасно считаем длину пути для любого размера >=2
+	if len(arr) < 2 {
+		return math.MaxInt32 // очень плохо — длинна пути некорректна
+	}
 	sum := 0
-	//if len(arr) != 8 {
-	//	panic("arr must have length 8")
-	//}
 	for i := 1; i < len(arr); i++ {
-		past, next := int(arr[i-1]), int(arr[i])
+		past, next := arr[i-1], arr[i]
 		sum += f.distances[past][next]
 	}
 	return sum
 }
+func (f *CityPerm) getCities(arr []int) []string {
+	bestPos := make([]string, 0, len(arr))
+	for i := 0; i < len(arr); i++ {
+		bestPos = append(bestPos, f.cities[int(arr[i])])
+	}
+	return bestPos
+}
 func (f *CityPerm) getD() int {
 	return len(f.distances)
-}
-func (a *antCalc) getPast() []int {
-	return a.past
 }
 func NewCityPerm() *CityPerm {
 	return &CityPerm{
@@ -54,43 +59,58 @@ func generateArr(n int, m int) [][]float64 {
 	for i := range arr {
 		arr[i] = make([]float64, m)
 		for j := range arr[i] {
-			arr[i][j] = rand.Float64() / 10
+			// небольшие положительные начальные феромоны
+			arr[i][j] = 0.01 + rand.Float64()*0.01
 		}
 	}
 	return arr
 }
-func generateAnts(n int) []*antCalc {
-	arr := make([]*antCalc, n)
+func generateAnts(nAnts int, nCities int) []*antCalc {
+	arr := make([]*antCalc, nAnts)
 	for i := range arr {
-		arr[i] = &antCalc{current: 0, past: []int{1, 2, 3, 4, 5, 6}}
+		// создаём past автоматически (все города кроме 0)
+		past := make([]int, 0, nCities-1)
+		for k := 1; k < nCities; k++ {
+			past = append(past, k)
+		}
+		arr[i] = &antCalc{current: 0, past: past}
 	}
 	return arr
 }
-func nextVer(til []float64, summ float64) int {
-	r := rand.Float64() * summ
+func nextVer(til []float64) int {
+	r := rand.Float64()
 	cum := 0.0
-	bestI := 0
 	for i, v := range til {
 		cum += v
 		if r <= cum {
-			bestI = i
-			break
+			return i
 		}
 	}
-	return bestI
+	// на случай погрешностей вернём последний индекс
+	return len(til) - 1
 }
 func main() {
-	rand.Seed(61)
 	city := NewCityPerm()
 	feramon := generateArr(len(city.distances), len(city.cities))
-	alfa, beta, p, t := 2.0, 1.0, 0.5, 0
-	ants := generateAnts(10)
-	globalBest := ants[0]
-	for {
+
+	// параметры (p — доля испарения, обычно в (0,1). p=1 — полностью убирает феромон!)
+	alfa, beta, p := 2.0, 5.0, 0.5
+	t := 0
+	ants := generateAnts(100000000, len(city.cities))
+
+	// инициализация глобального лучшего (копия первого муравья безопасно)
+	globalBest := &antCalc{fy: math.MaxInt32, route: nil}
+
+	for ; t < 1000; t++ {
+		// каждый муравей строит маршрут
 		for _, ant := range ants {
 			ant.current = 0
-			ant.past = []int{1, 2, 3, 4, 5, 6}
-			ant.route = []int{ant.current} // сохраняем маршрут
+			// восстановим past (вдруг предыдущая итерация изменила)
+			ant.past = make([]int, 0, len(city.cities)-1)
+			for k := 1; k < len(city.cities); k++ {
+				ant.past = append(ant.past, k)
+			}
+			ant.route = []int{ant.current}
 
 			for len(ant.past) != 0 {
 				til := make([]float64, len(ant.past))
@@ -101,56 +121,79 @@ func main() {
 					til[i] = num
 					cum += num
 				}
-				bestI := nextVer(til, cum)
+				// если все веса нулевые (cum == 0), даём равные шансы
+				if cum == 0 {
+					for i := range til {
+						til[i] = 1.0 / float64(len(til))
+					}
+				} else {
+					for i := range til {
+						til[i] /= cum
+					}
+				}
+				bestI := nextVer(til)
+				feramon[ant.current][bestI] = feramon[ant.current][bestI]*(0.9) + 0.01
 				nextCity := ant.past[bestI]
 				ant.current = nextCity
 				ant.route = append(ant.route, nextCity)
 				ant.past = append(ant.past[:bestI], ant.past[bestI+1:]...)
 			}
+			// возвращение в начальную точку
 			ant.route = append(ant.route, 0)
 			ant.fy = city.getY(ant.route)
 		}
-		// испарение
+		// испарение феромона
 		for i := 0; i < city.getD(); i++ {
 			for j := 0; j < city.getD(); j++ {
-				feramon[i][j] *= (1 - p)
+				feramon[i][j] *= (1.0 - p)
 			}
 		}
 
 		// обновление по муравьям
 		for _, ant := range ants {
+			// защита на случай некорректного fy
+			if ant.fy <= 0 {
+				continue
+			}
+			delta := 1.0 / float64(ant.fy)
 			for i := 1; i < len(ant.route); i++ {
 				a, b := ant.route[i-1], ant.route[i]
-				feramon[a][b] += 1.0 / float64(ant.fy)
-				feramon[b][a] += 1.0 / float64(ant.fy) // симметрия
+				feramon[a][b] += delta
+				feramon[b][a] += delta
 			}
 		}
+
+		// добавляем дополнительно вклад лучшего в итерации
 		bestAnt := ants[0]
 		for _, ant := range ants {
 			if ant.fy < bestAnt.fy {
 				bestAnt = ant
 			}
 		}
-		for i := 1; i < len(bestAnt.route); i++ {
-			a, b := bestAnt.route[i-1], bestAnt.route[i]
-			feramon[a][b] += 5.0 / float64(bestAnt.fy) // усиление глобально лучшего
-			feramon[b][a] += 5.0 / float64(bestAnt.fy)
+		if bestAnt.fy > 0 {
+			delta := 10.0 / float64(bestAnt.fy)
+			for i := 1; i < len(bestAnt.route); i++ {
+				a, b := bestAnt.route[i-1], bestAnt.route[i]
+				feramon[a][b] += delta
+				feramon[b][a] += delta
+			}
 		}
-		t += 1
-		if t == 10000 {
-			break
-		}
+
+		// обновляем глобальный лучший (копируем маршрут)
 		for _, ant := range ants {
 			if ant.fy < globalBest.fy {
-				a := *ant       // разворачиваем указатель в значение
-				globalBest = &a // сохраняем указатель на копию
+				routeCopy := make([]int, len(ant.route))
+				copy(routeCopy, ant.route)
+				globalBest = &antCalc{fy: ant.fy, route: routeCopy}
 			}
-
 		}
-	}
-	for _, ant := range ants {
-		fmt.Println(ant.route, ant.fy)
-	}
-	fmt.Println("best", globalBest.route, globalBest.fy)
 
+		fmt.Println("Итерация", t+1, "Текущее лучшее решение", globalBest.route, globalBest.fy)
+	}
+
+	fmt.Println("Лучшие решения по муравьям (последняя итерация):")
+	for i, ant := range ants {
+		fmt.Println("Муравей", i+1, ant.route, ant.fy)
+	}
+	fmt.Println("Лучшее решение (города):", city.getCities(globalBest.route), globalBest.fy)
 }
