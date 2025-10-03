@@ -5,7 +5,11 @@ import (
 	"math"
 	"math/rand"
 	"sort"
-	"time"
+	"strconv"
+
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
 )
 
 type cord struct {
@@ -22,13 +26,22 @@ func (f *Function) getY(arr []float64) float64 {
 	x, y := arr[0], arr[1]
 	return -(0.26*(x*x+y*y) - 0.48*x*y)
 }
-
+func (c cord) print(i int) {
+	fmt.Printf("X%d = (", i+1)
+	for j := 0; j < len(c.x); j++ {
+		fmt.Printf(" %.4f", c.x[j])
+	}
+	fmt.Print(")")
+	fmt.Printf("f()=%.4f\n", c.y)
+}
 func distance(a, b []float64) float64 {
+	//fmt.Printf("a = %.4f, b = %.4f |", a, b)
 	sum := 0.0
 	for i := range a {
 		d := a[i] - b[i]
 		sum += d * d
 	}
+	//fmt.Printf("%.4f\n", math.Sqrt(sum))
 	return math.Sqrt(sum)
 }
 
@@ -46,30 +59,48 @@ func sorted(arr []*cord) []*cord {
 	})
 	return arr
 }
+func show(allPoints []*cord, i int) {
+	// Визуализация точек
+	p := plot.New()
+	p.Title.Text = "Визуализация точек"
+	p.X.Label.Text = "x"
+	p.Y.Label.Text = "y"
 
+	pts := make(plotter.XYs, len(allPoints))
+	for i, pt := range allPoints {
+		pts[i].X = pt.x[0]
+		pts[i].Y = pt.x[1]
+	}
+
+	s, err := plotter.NewScatter(pts)
+	if err != nil {
+		panic(err)
+	}
+	p.Add(s)
+
+	if err := p.Save(10*vg.Inch, 10*vg.Inch, "points"+strconv.Itoa(i)+".png"); err != nil {
+		panic(err)
+	}
+}
 func (f *Function) run(tau int, r *rand.Rand) *cord {
 	S := 10
 	n := 2
 	m := 2
 	N := 5
 	M := 3
-	delta := 0.5
+	deltaFind, deltaSpawn := 0.5, 0.5
 
 	// Шаг 1: разведчики
 	var scouts []*cord
 	for i := 0; i < S; i++ {
 		x := []float64{20 * (r.Float64() - 0.5), 20 * (r.Float64() - 0.5)}
-		scouts = append(scouts, &cord{x: x, y: f.getY(x)})
+		scout := &cord{x: x, y: f.getY(x)}
+		scouts = append(scouts, scout)
+		//scout.print(i)
 	}
 	scouts = sorted(scouts)
 
-	// Шаг 2: выделяем лучшие и перспективные области
-	bestRegions := scouts[:n]
-	promRegions := scouts[n : n+m]
-
-	// Шаг 3: объединение близких областей
-	allRegions := append([]*cord{}, bestRegions...)
-	allRegions = append(allRegions, promRegions...)
+	allRegions := scouts
 	merged := make([]bool, len(allRegions))
 	var regions []*cord
 	for i := 0; i < len(allRegions); i++ {
@@ -78,7 +109,8 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 		}
 		center := allRegions[i]
 		for j := i + 1; j < len(allRegions); j++ {
-			if distance(allRegions[i].x, allRegions[j].x) < delta {
+			//fmt.Print(i, j)
+			if distance(allRegions[i].x, allRegions[j].x) < deltaFind {
 				if allRegions[j].y > center.y {
 					center = allRegions[j]
 				}
@@ -86,6 +118,9 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 			}
 		}
 		regions = append(regions, center)
+		if len(regions) >= n+m {
+			break
+		}
 	}
 
 	best := regions[0]
@@ -100,7 +135,7 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 				count = N
 			}
 			for k := 0; k < count; k++ {
-				newX := f.localSearch(region.x, delta, r)
+				newX := f.localSearch(region.x, deltaSpawn, r)
 				c := &cord{x: newX, y: f.getY(newX)}
 				if c.y > region.y {
 					region = c
@@ -122,18 +157,17 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 		}
 
 		regions = newRegions
-		fmt.Printf("Итерация %d, текущий лучший: f=%.4f в (%.4f, %.4f)\n", iter, best.y, best.x[0], best.x[1])
-
+		fmt.Printf("Итерация %d, текущий лучший: f=%.4f в (%.4f, %.4f)\n", iter, -best.y, best.x[0], best.x[1])
+		//show(regions, iter)
 	}
-
 	return best
 }
 
 func main() {
-	src := rand.NewSource(time.Now().UnixNano())
+	src := rand.NewSource(211110233)
 	r := rand.New(src)
 
 	f := Function{}
 	best := f.run(5, r)
-	fmt.Printf("Лучшее решение: x=%.4f y=%.4f → f=%.4f\n", best.x[0], best.x[1], best.y)
+	fmt.Printf("Лучшее решение: x=%.4f y=%.4f → f=%.4f\n", best.x[0], best.x[1], -best.y)
 }
