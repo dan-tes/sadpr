@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
+	"time"
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -32,7 +33,7 @@ func (c cord) print(i int) {
 		fmt.Printf(" %.4f", c.x[j])
 	}
 	fmt.Print(")")
-	fmt.Printf("f()=%.4f\n", c.y)
+	fmt.Printf("f()=%.4f\n", -c.y)
 }
 func distance(a, b []float64) float64 {
 	//fmt.Printf("a = %.4f, b = %.4f |", a, b)
@@ -145,7 +146,10 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 		}
 
 		newRegions = sorted(newRegions)
-
+		fmt.Println("Центры регионов")
+		for i, region := range newRegions {
+			region.print(i)
+		}
 		if newRegions[0].y > best.y {
 			best = newRegions[0]
 			bestCount = 0
@@ -155,19 +159,20 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 				break
 			}
 		}
-
+		deltaSpawn = deltaFind * ((30000 - float64(iter)) / 30000)
+		//fmt.Println(deltaSpawn)
 		regions = newRegions
-		fmt.Printf("Итерация %d, текущий лучший: f=%.4f в (%.4f, %.4f)\n", iter, -best.y, best.x[0], best.x[1])
+		fmt.Printf("Итерация %d, текущий лучший: f=%.8f в (%.4f, %.4f)\n", iter, -best.y, best.x[0], best.x[1])
 		//show(regions, iter)
 	}
 	return best
 }
 
 func main() {
-	src := rand.NewSource(211110233)
+	src := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(src)
 
 	f := Function{}
-	best := f.run(5, r)
-	fmt.Printf("Лучшее решение: x=%.4f y=%.4f → f=%.4f\n", best.x[0], best.x[1], -best.y)
+	best := f.run(10000, r)
+	fmt.Printf("Лучшее решение: x=%.4f y=%.4f → f=%.13f\n", best.x[0], best.x[1], -best.y)
 }
