@@ -83,8 +83,8 @@ func generateSwarm(count int) []*particle {
 
 // Основной алгоритм PSO
 func getDecision() ([]float64, float64) {
-	numParticles := 10
-	maxIter := 20
+	numParticles := 100
+	maxIter := 200
 	swarm := generateSwarm(numParticles)
 
 	// Инициализация глобального минимума

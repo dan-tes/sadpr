@@ -87,7 +87,7 @@ func (f *Function) run(tau int, r *rand.Rand) *cord {
 	S := 10
 	n := 2
 	m := 2
-	N := 5
+	N := 50
 	M := 3
 	deltaFind, deltaSpawn := 0.5, 0.5
 
@@ -173,6 +173,6 @@ func main() {
 	r := rand.New(src)
 
 	f := Function{}
-	best := f.run(10000, r)
+	best := f.run(10, r)
 	fmt.Printf("Лучшее решение: x=%.4f y=%.4f → f=%.13f\n", best.x[0], best.x[1], -best.y)
 }

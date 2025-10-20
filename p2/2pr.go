@@ -21,7 +21,7 @@ func (f *Function) generateNewDecision(x []float64, t float64, k int) []float64 
 	newX := make([]float64, len(x))
 	for i := 0; i < len(x); i++ {
 		u := rand.Float64()*10 - 5
-		newX[i] = t / math.Pow(math.Pow(u-x[i], 2)+math.Pow(t, 2), 3/2)
+		newX[i] = (t / math.Pow(math.Pow(u-x[i], 2)+math.Pow(t, 2), 3/2)) / math.Pow(math.Pi, 2)
 	}
 	//newX[0], newX[1] = 10*rand.Float64(), rand.Float64()*10
 	return newX
