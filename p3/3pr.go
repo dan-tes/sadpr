@@ -17,6 +17,10 @@ type particle struct {
 	D      int       // размерность
 }
 
+func (p *particle) print() {
+	fmt.Println(p.X, p.V, p.Y, p.PBest, p.PBestY, p.D)
+}
+
 // Функция, которую минимизируем
 func getY(arr []float64) float64 {
 	if len(arr) != 2 {
@@ -82,9 +86,7 @@ func generateSwarm(count int) []*particle {
 }
 
 // Основной алгоритм PSO
-func getDecision() ([]float64, float64) {
-	numParticles := 100
-	maxIter := 200
+func getDecision(getYY func([]*particle, int) *particle, numParticles int, maxIter int) ([]float64, float64) {
 	swarm := generateSwarm(numParticles)
 
 	// Инициализация глобального минимума
@@ -100,8 +102,8 @@ func getDecision() ([]float64, float64) {
 
 	// Основной цикл
 	for iter := 0; iter < maxIter; iter++ {
-		for _, p := range swarm {
-			p.updateV(gBest)
+		for i, p := range swarm {
+			p.updateV(getYY(swarm, i).X)
 			p.updateX()
 			p.Y = getY(p.X)
 			if p.Y < p.PBestY {
@@ -113,19 +115,42 @@ func getDecision() ([]float64, float64) {
 				copy(gBest, p.X)
 			}
 		}
-
-		fmt.Printf("Итерация %3d | лучший Y = %.6f | позиция = [%.4f, %.4f]\n",
-			iter, gBestY, gBest[0], gBest[1])
+		if iter%10 == 0 {
+			fmt.Printf("Итерация %3d | лучший Y = %.6f | позиция = [%.4f, %.4f]\n",
+				iter, gBestY, gBest[0], gBest[1])
+		}
 
 	}
 
-	fmt.Printf("\nЛучшее решение: f(%f, %f) = %f\n", gBest[0], gBest[1], gBestY)
+	fmt.Printf("\nЛучшее решение: f(%e, %e) = %e\n", gBest[0], gBest[1], gBestY)
 	return gBest, gBestY
 }
 
 // Точка входа
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	fmt.Println("=== Роевой алгоритм (PSO) ===")
-	getDecision()
+	fmt.Println("=== Роевой глобальный алгоритм  ===")
+	global := func(a []*particle, _ int) *particle {
+		best := a[0]
+		for _, p := range a {
+			if best.Y > p.Y {
+				best = p
+			}
+		}
+		return best
+	}
+	getDecision(global, 100, 200)
+	fmt.Println("=== Роевой локальный алгоритм  ===")
+	local := func(a []*particle, current int) *particle {
+		best := a[0]
+		lambda := 1
+		for i := current - lambda; i < current+lambda; i++ {
+			cur := min(max(i, 0), len(a)-1)
+			if best.Y > a[cur].Y {
+				best = a[cur]
+			}
+		}
+		return best
+	}
+	getDecision(local, 100, 200)
 }

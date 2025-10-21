@@ -10,12 +10,12 @@ import (
 // Function === Твоя функция ===
 type Function struct{}
 
+// Значение функции
 func (f *Function) getY(arr []float64) float64 {
 	if len(arr) != 2 {
-		panic("arr must have length 2")
+		panic("arr must have length p2")
 	}
 	x, y := arr[0], arr[1]
-	// Цель — минимизация, поэтому возвращаем отрицание (т.к. getY у тебя с минусом)
 	return 0.26*(x*x+y*y) - 0.48*x*y
 }
 
@@ -31,7 +31,7 @@ func (c cord) print(i int) {
 		fmt.Printf(" %.10f", c.x[j])
 	}
 	fmt.Print(" )")
-	fmt.Printf(" f()=%.25f\n", -c.y)
+	fmt.Printf(" f()=%.25f\n", c.y)
 }
 
 // === Вспомогательные функции ===
@@ -88,7 +88,6 @@ func whirlpoolOptimize(
 			// Вращение и сжатие
 			newX := population[i].x[0] + alpha*(R[0][0]*dx+R[0][1]*dy)
 			newY := population[i].x[1] + alpha*(R[1][0]*dx+R[1][1]*dy)
-
 			// Ограничение по границам
 			newX = math.Min(math.Max(newX, bounds[0][0]), bounds[0][1])
 			newY = math.Min(math.Max(newY, bounds[1][0]), bounds[1][1])
@@ -102,7 +101,7 @@ func whirlpoolOptimize(
 			}
 		}
 		fmt.Printf("Итерация %d: лучший f() = %f в (%f, %f)\n",
-			iter, -best.y, best.x[0], best.x[1])
+			iter, best.y, best.x[0], best.x[1])
 
 	}
 
@@ -112,9 +111,9 @@ func whirlpoolOptimize(
 // === Тест ===
 func main() {
 	f := &Function{}
-	bounds := [2][2]float64{{-5, 5}, {-5, 5}}
+	bounds := [2][2]float64{{-10, 10}, {-10, 10}}
 
-	best := whirlpoolOptimize(f, bounds, 30, 100, 0.5)
+	best := whirlpoolOptimize(f, bounds, 300, 90, 0.5)
 
 	fmt.Println("\nЛучшее найденное решение:")
 	best.print(0)
